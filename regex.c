@@ -6,15 +6,27 @@
 #include <aqua.h>
 
 #define USAGE "Usage: regex [options] <regex> [<nmatch>]\n"\
-    " The default of nmatch is 1.\n"\
+    " Test a libc regular expression agaist patterns.\n\n"\
+    " nmatch - This is the number of matches to display counting the primary match\n"\
+    "  and any sub-expression matches. If the primary pattern does not match then no\n"\
+    "  matches are displayed. The default of nmatch is 1.\n\n"\
     " Compile Options:\n"\
-    "  -e REG_EXTENDED\n"\
-    "  -i REG_ICASE\n"\
-    "  -o REG_NOSUB\n"\
-    "  -n REG_NEWLINE\n"\
+    "  -e REG_EXTENDED - Treat the pattern as an extended regular expression, rather\n"\
+    "      than as a basic regular expression.\n"\
+    "  -i REG_ICASE - Ignore case when matching letters.\n"\
+    "  -o REG_NOSUB - Don’t bother storing the contents of the matchptr array.\n"\
+    "  -n REG_NEWLINE - Treat a newline in string as dividing string into multiple\n"\
+    "      lines, so that ‘$’ can match before the newline and ‘^’ can match after.\n"\
+    "      Also, don’t permit ‘.’ to match a newline, and don’t permit ‘[^...]’ to\n"\
+    "      match a newline. Otherwise, newline acts like any other ordinary\n"\
+    "      character.\n\n"\
     " Exec Options:\n"\
-    "  -b REG_NOTBOL\n"\
-    "  -l REG_NOTEOL\n"
+    "  -b REG_NOTBOL - Do not regard the beginning of the specified string as the\n"\
+    "      beginning of a line; more generally, don’t make any assumptions about what\n"\
+    "      text might precede it.\n"\
+    "  -l REG_NOTEOL - Do not regard the end of the specified string as the end of a\n"\
+    "      line; more generally, don’t make any assumptions about what text might\n"\
+    "      follow it.\n"
 
 void run(char *str, int cflags, int eflags, int nmatch);
 

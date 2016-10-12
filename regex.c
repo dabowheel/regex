@@ -6,7 +6,7 @@
 #include <aqua.h>
 
 #define USAGE "Usage: regex [options] <regex> [<nmatch>]\n"\
-    " Test a libc regular expression agaist patterns.\n\n"\
+    " Test a libc regular expression against patterns.\n\n"\
     " nmatch - This is the number of matches to display counting the primary match\n"\
     "  and any sub-expression matches. If the primary pattern does not match then no\n"\
     "  matches are displayed. The default of nmatch is 1.\n\n"\
@@ -29,6 +29,7 @@
     "      follow it.\n"
 
 void run(char *str, int cflags, int eflags, int nmatch);
+int regex_compile(regex_t *compiled, char *pattern, int cflags, char **errorptr);
 
 int main(int argc, char *argv[])
 {
@@ -89,58 +90,73 @@ int main(int argc, char *argv[])
     run(str, cflags, eflags, nmatch);
 }
 
-void run(char *str, int cflags, int eflags, int nmatch)
+int regex_compile(regex_t *compiled, char *pattern, int cflags, char **errorptr)
 {
-    regex_t compiled;
     int errcode;
-    string s;
-    int hasterm;
-    int match = 0;
-    regmatch_t *matchptr = NULL;
 
-    errcode = regcomp(&compiled, str, cflags);
+    errcode = regcomp(compiled, pattern, cflags);
     if (errcode) {
         size_t length;
-        char *error;
-        length = regerror(errcode, &compiled, NULL, 0);
-        error = malloc(length);
-        regerror(errcode, &compiled, error, length);
+        length = regerror(errcode, compiled, NULL, 0);
+        *errorptr = malloc(length);
+        regerror(errcode, compiled, *errorptr, length);
+        return 0;
+    }
+    return 1;
+}
+
+int regex_exec(regex_t *compiled, char *pattern, int nmatch, int eflags, regmatch_t *matchptr, int *ismatchptr, char **errorptr)
+{
+    int errcode;
+
+    if (nmatch > 0) {
+        matchptr = malloc(sizeof(regmatch_t) * nmatch);
+    }
+    errcode = regexec(compiled, pattern, nmatch, matchptr, eflags);
+    *ismatchptr = (errcode == 0);
+    if (!*ismatchptr && errcode != REG_NOMATCH) {
+        size_t length;
+        length = regerror(errcode, compiled, NULL, 0);
+        *errorptr = malloc(length);
+        regerror(errcode, compiled, *errorptr, length);
+        return 0;
+    }
+    return 1;
+}
+
+void run(char *pattern, int cflags, int eflags, int nmatch)
+{
+    regex_t compiled;
+    string s;
+    int hasterm;
+    regmatch_t *matchptr = NULL;
+    char *error;
+    int ismatch = 0;
+
+    if (!regex_compile(&compiled, pattern, cflags, &error)) {
         fprintf(stderr, "Compile error: %s\n", error);
         free(error);
-        exit(1);
+        return;
     }
 
     while ((s = getline(stdin, &hasterm))) {
-        if (nmatch > 0) {
-            matchptr = malloc(sizeof(regmatch_t) * nmatch);
-        }
-        errcode = regexec(&compiled, s->data, nmatch, matchptr, eflags);
-        match = (errcode == 0);
-        if (!match && errcode != REG_NOMATCH) {
-            size_t length;
-            char *error;
-            length = regerror(errcode, &compiled, NULL, 0);
-            error = malloc(length);
-            regerror(errcode, &compiled, error, length);
+        if (!regex_exec(&compiled, s->data, nmatch, eflags, matchptr, &ismatch, &error)) {
             fprintf(stderr, "Exec error: %s\n", error);
-            sdestroy(s);
-            if (matchptr)
+            if (nmatch > 0)
                 free(matchptr);
-            break;
+            free(error);
+            sdestroy(s);
+            continue;
         }
 
-        printf("match = %d\n", match);
-        if (match) {
-            char *name;
+        printf("match = %d\n", ismatch);
+        if (ismatch) {
             for (int i = 0; i < nmatch; i++) {
-                if (i == 0)
-                    name = "match";
-                else
-                    name = "submatch";
-                printf("%s position = [%d, %d)\n", name, matchptr[i].rm_so, matchptr[i].rm_eo);
+                printf("%s position = [%d, %d)\n", (i==0)?("match"):("submatch"), matchptr[i].rm_so, matchptr[i].rm_eo);
             }
         }
         if (nmatch > 0)
             free(matchptr);
+        sdestroy(s);
     }
 }

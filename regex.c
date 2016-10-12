@@ -9,8 +9,14 @@
     " The default of nmatch is 1.\n"\
     " Compile Options:\n"\
     "  -e REG_EXTENDED\n"\
+    "  -i REG_ICASE\n"\
+    "  -o REG_NOSUB\n"\
+    "  -n REG_NEWLINE\n"\
+    " Exec Options:\n"\
+    "  -b REG_NOTBOL\n"\
+    "  -l REG_NOTEOL\n"
 
-void run(char *str, int cflags, int nmatch);
+void run(char *str, int cflags, int eflags, int nmatch);
 
 int main(int argc, char *argv[])
 {
@@ -19,11 +25,27 @@ int main(int argc, char *argv[])
     char *str;
     int nmatch = 1;
     int cflags = 0;
+    int eflags = 0;
 
-    while ((c = getopt(argc, argv, "e")) != -1) {
+    while ((c = getopt(argc, argv, "eionbl")) != -1) {
         switch (c) {
             case 'e':
-                eflag = 1;
+                cflags |= REG_EXTENDED;
+                break;
+            case 'i':
+                cflags |= REG_ICASE;
+                break;
+            case 'o':
+                cflags |= REG_NOSUB;
+                break;
+            case 'n':
+                cflags |= REG_NEWLINE;
+                break;
+            case 'b':
+                eflags |= REG_NOTBOL;
+                break;
+            case 'l':
+                eflags |= REG_NOTEOL;
                 break;
             case '?':
                 fprintf(stderr, "Unknown option: %c\n", c);
@@ -52,16 +74,15 @@ int main(int argc, char *argv[])
     if (eflag)
         cflags |= REG_EXTENDED;
 
-    run(str, cflags, nmatch);
+    run(str, cflags, eflags, nmatch);
 }
 
-void run(char *str, int cflags, int nmatch)
+void run(char *str, int cflags, int eflags, int nmatch)
 {
     regex_t compiled;
     int errcode;
     string s;
     int hasterm;
-    int eflags = 0;
     int match = 0;
     regmatch_t *matchptr = NULL;
 
@@ -98,8 +119,13 @@ void run(char *str, int cflags, int nmatch)
 
         printf("match = %d\n", match);
         if (match) {
+            char *name;
             for (int i = 0; i < nmatch; i++) {
-                printf("match position = [%d, %d)\n", matchptr[i].rm_so, matchptr[i].rm_eo);
+                if (i == 0)
+                    name = "match";
+                else
+                    name = "submatch";
+                printf("%s position = [%d, %d)\n", name, matchptr[i].rm_so, matchptr[i].rm_eo);
             }
         }
         if (nmatch > 0)

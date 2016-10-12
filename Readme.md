@@ -1,7 +1,7 @@
 # Regex - Test libc regular expressions
 ## Setup
     make
-    make install
+    sudo make install
 
 ## Display Help
     regex

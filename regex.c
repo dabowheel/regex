@@ -5,20 +5,20 @@
 #define IMPORT_FROM_AQUA
 #include <aqua.h>
 
+#define USAGE "Usage: regex [options] <regex> [<nmatch>]\n"\
+    " The default of nmatch is 1.\n"\
+    " Compile Options:\n"\
+    "  -e REG_EXTENDED\n"\
+
+void run(char *str, int cflags, int nmatch);
+
 int main(int argc, char *argv[])
 {
     int c;
     int eflag = 0;
     char *str;
-    regex_t compiled;
+    int nmatch = 1;
     int cflags = 0;
-    int errcode;
-    string s;
-    int hasterm;
-    int eflags = 0;
-    int match = 0;
-    regmatch_t *matchptr = NULL;
-    int nmatch = 0;
 
     while ((c = getopt(argc, argv, "e")) != -1) {
         switch (c) {
@@ -27,6 +27,7 @@ int main(int argc, char *argv[])
                 break;
             case '?':
                 fprintf(stderr, "Unknown option: %c\n", c);
+                exit(1);
                 break;
             default:
                 fprintf(stderr, "Unexpected error processing options.\n");
@@ -36,7 +37,7 @@ int main(int argc, char *argv[])
     }
 
     if (optind < argc - 2 || optind > argc - 1) {
-        fprintf(stderr, "Usage: regex [-e] <regex> [<nmatch>]\n");
+        fprintf(stderr, USAGE);
         return 1;
     }
 
@@ -50,7 +51,20 @@ int main(int argc, char *argv[])
     }
     if (eflag)
         cflags |= REG_EXTENDED;
- 
+
+    run(str, cflags, nmatch);
+}
+
+void run(char *str, int cflags, int nmatch)
+{
+    regex_t compiled;
+    int errcode;
+    string s;
+    int hasterm;
+    int eflags = 0;
+    int match = 0;
+    regmatch_t *matchptr = NULL;
+
     errcode = regcomp(&compiled, str, cflags);
     if (errcode) {
         size_t length;
@@ -60,7 +74,7 @@ int main(int argc, char *argv[])
         regerror(errcode, &compiled, error, length);
         fprintf(stderr, "Compile error: %s\n", error);
         free(error);
-        return 1;
+        exit(1);
     }
 
     while ((s = getline(stdin, &hasterm))) {
@@ -75,21 +89,20 @@ int main(int argc, char *argv[])
             length = regerror(errcode, &compiled, NULL, 0);
             error = malloc(length);
             regerror(errcode, &compiled, error, length);
-            fprintf(stderr, "Error: %s\n", error);
+            fprintf(stderr, "Exec error: %s\n", error);
             sdestroy(s);
             if (matchptr)
                 free(matchptr);
             break;
         }
+
         printf("match = %d\n", match);
         if (match) {
             for (int i = 0; i < nmatch; i++) {
-                printf("so = %d\n", matchptr[i].rm_so);
-                printf("eo = %d\n", matchptr[i].rm_eo);
+                printf("match position = [%d, %d)\n", matchptr[i].rm_so, matchptr[i].rm_eo);
             }
         }
         if (nmatch > 0)
             free(matchptr);
     }
-    return 0;
 }

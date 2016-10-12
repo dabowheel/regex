@@ -17,6 +17,8 @@ int main(int argc, char *argv[])
     int hasterm;
     int eflags = 0;
     int match = 0;
+    regmatch_t *matchptr = NULL;
+    int nmatch = 0;
 
     while ((c = getopt(argc, argv, "e")) != -1) {
         switch (c) {
@@ -33,12 +35,19 @@ int main(int argc, char *argv[])
         }
     }
 
-    if (optind != argc - 1) {
-        fprintf(stderr, "Usage: regex [-e] <regex>\n");
+    if (optind < argc - 2 || optind > argc - 1) {
+        fprintf(stderr, "Usage: regex [-e] <regex> [<nmatch>]\n");
         return 1;
     }
 
-    str = argv[optind];
+    str = argv[optind++];
+    if (optind == argc - 1) {
+        nmatch = strtol(argv[optind], NULL, 10);
+        if (nmatch < 0) {
+            fprintf(stderr, "nmatch cannot be negative.\n");
+            return 1;
+        }
+    }
     if (eflag)
         cflags |= REG_EXTENDED;
  
@@ -55,7 +64,10 @@ int main(int argc, char *argv[])
     }
 
     while ((s = getline(stdin, &hasterm))) {
-        errcode = regexec(&compiled, s->data, 0, NULL, eflags);
+        if (nmatch > 0) {
+            matchptr = malloc(sizeof(regmatch_t) * nmatch);
+        }
+        errcode = regexec(&compiled, s->data, nmatch, matchptr, eflags);
         match = (errcode == 0);
         if (!match && errcode != REG_NOMATCH) {
             size_t length;
@@ -65,9 +77,19 @@ int main(int argc, char *argv[])
             regerror(errcode, &compiled, error, length);
             fprintf(stderr, "Error: %s\n", error);
             sdestroy(s);
+            if (matchptr)
+                free(matchptr);
             break;
         }
         printf("match = %d\n", match);
+        if (match) {
+            for (int i = 0; i < nmatch; i++) {
+                printf("so = %d\n", matchptr[i].rm_so);
+                printf("eo = %d\n", matchptr[i].rm_eo);
+            }
+        }
+        if (nmatch > 0)
+            free(matchptr);
     }
     return 0;
 }
